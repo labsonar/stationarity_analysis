@@ -1,0 +1,181 @@
+#!/bin/bash
+
+user=$USER
+
+script_name=${0##*/}					#build.sh
+script_full=`realpath $0`				#/path/build.sh
+script_path=`dirname "$script_full"` 	#/path/
+dir_name=`basename "$script_path"`		#Project base dir
+
+print_library () {
+	echo -e "\033[1m\033[32m$1\033[0m"
+}
+
+cd "$script_path"
+
+libraries=($(cat Libraries.txt))
+
+case "$1" in
+	clone)
+		for i in "${libraries[@]}"
+		do
+			library="$i"
+			print_library $library
+			cd `dirname $library`
+			echo "clonning git@github.com:labsonar/"$library".git"
+			git clone --recursive git@github.com:labsonar/$library.git
+			cd "$script_path"
+		done
+	;;
+	
+	status)
+		s=$(git status -s)
+		if [ -n "$s" ]; then
+			print_library $dir_name
+			echo "$s"
+		fi
+
+		for i in "${libraries[@]}"; do
+			library="$i"
+			cd "$script_path/$library"
+			s=$(git status -s)
+
+			if [ -n "$s" ]; then
+				print_library $library
+				echo "$s"
+			fi
+		done
+	;;
+
+	log)
+		print_library $dir_name
+		s=$(git log -1 --format="%h -> %s")
+		echo "$s"
+
+		for i in "${libraries[@]}"; do
+			library="$i"
+			cd "$script_path/$library"
+			print_library $library
+
+			branch=$(git branch --show-current)
+			commit=$(git log -1 --format="%h - %s")
+			tags=$(git tag -l)
+
+			echo -e " - Branch:\t$branch"
+			echo -e " - Commit:\t$commit"
+			if [ -n "$tags" ]; then
+				echo -e " - Tags:\t"$tags
+			fi
+		done
+	;;
+	
+	branch)
+		print_library $dir_name
+		s=$(git branch)
+		echo "$s"
+
+		for i in "${libraries[@]}"; do
+			library="$i"
+			cd "$script_path/$library"
+			print_library $library
+			s=$(git branch)
+			echo "$s"
+		done
+	;;
+	
+	pull)
+		for i in "${libraries[@]}"
+		do
+			library="$i"
+			cd "$script_path/$library"
+			print_library $library
+			git pull --recurse-submodules origin
+		done
+	;;
+	
+	push)
+		for i in "${libraries[@]}"
+		do
+			library="$i"
+			cd "$script_path/$library"
+			print_library $library
+			git push origin master
+		done
+	;;
+
+	install)
+		for i in "${libraries[@]}"
+		do
+			library="$i"
+			cd "$script_path/$library/src"
+			print_library $library
+			pip install -e . --user
+		done
+	;;
+
+	deploy)
+		for i in "${libraries[@]}"
+		do
+			library="$i"
+			cd "$script_path/$library/src"
+			print_library $library
+			pip install . --user
+		done
+	;;
+
+	todo)
+		for i in "${libraries[@]}"
+		do
+			library="$i"
+			cd "$script_path/$library"
+			grep --color -nR TODO
+			
+		done
+	;;
+
+	count)
+		for i in "${libraries[@]}"
+		do
+			library="$i"
+			cd "$script_path/$library"
+			print_library $library
+			find . -path './*.py' | xargs wc -l | tail -n 1
+
+		done
+	;;
+	
+	pack)
+		#$script_full clean
+		file_name=$(date +"$dir_name"_%Y-%m-%d_%H:%M.tar.gz)
+		echo "Compressing... "
+		cd ../
+		tar -czf "./$file_name" --exclude="*/CMakeFiles" --exclude="*/lib" --exclude="*/bin" --exclude="*/bin_test" --exclude="*/Manuais" --exclude="*/doc/html" --exclude="*/doc/latex" Codebase
+		
+		if [ "$2" != "" ]; then
+			md5_bf=`md5sum $file_name | cut -d " " -f1`
+			echo md5sum: $md5
+			mv $file_name "$2/$file_name"
+			md5_af=`md5sum "$2/$file_name" | cut -d " " -f1`
+			if [ $md5_bf == $md5_af ]; then
+				echo "$file_name copied"
+			else
+				echo "Copy error"
+			fi
+		else
+			md5=`md5sum $file_name | cut -d " " -f1`
+			echo md5sum: $md5
+		fi
+	;;
+	
+	list)
+		echo clone status log branch pull push install deploy todo count pack list
+	;;
+
+	*)
+		echo "$script_name {clone | status | log | branch | pull | push | install | deploy | todo | count | pack | list}"
+		echo "Details in: $script_full"
+		exit 1
+	;;
+esac 
+ 
+exit 0
