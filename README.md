@@ -1,8 +1,9 @@
 ## Introduction
-This project provides a basic template for managing multiple Python libraries development in the template_library format.
+This is a Python project developed within LabSonar/LPS to analyze stationarity in acoustic signals, aiming to define metrics for future developments in generative models with AI.
 
 ## Authors
 - **Developer**: [Fábio Oliveira](https://github.com/obs-fabio)
+- **Developer**: [Gabriel Lisboa](https://github.com/gabrielhblisboa)
 - **Advisor**: [Natanael Junior](https://github.com/natmourajr/natmourajr)
 
 ## Usage
