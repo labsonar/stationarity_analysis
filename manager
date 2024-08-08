@@ -38,6 +38,8 @@ case "$1" in
 			fi
 
 		done
+
+		git submodule update --init --recursive
 	;;
 
 	status)
