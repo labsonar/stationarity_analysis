@@ -1,5 +1,4 @@
-#Libraries
-template_library
+.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

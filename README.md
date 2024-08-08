@@ -23,12 +23,18 @@ This project provides a shell script `manager` to help manage multiple Python li
 - **pack**: Compress all libraries into a .tar.gz file.
 - **count**: List the number of lines in each library.
 
+#### Libraries
+Currently this project depends on libraries as git submodules
+- [utils](https://github.com/labsonar/utils.git)
+- [signal_processing](https://github.com/labsonar/signal_processing.git)
+- [acoustic_synthesis](https://github.com/labsonar/acoustic_synthesis.git)
+
 ### Installing
 
 The project must specify which Docker environment to use or how to prepare it.
 
 ```bash
-./manager clone
+./manager check_libs
 ./manager install
 ```
 
@@ -38,6 +44,10 @@ The following directory structure is recommended for project development:
 
 - **apps/:** Contains the Python scripts that leverage one or more libraries. These scripts can be designed as command-line applications for practical use.
 - **notebooks/:** If desired, this directory can be added to include Jupyter Notebooks to showcase demonstrations, tutorials, and interactive code examples.
+
+
+## Docker
+This project was develop to run in the docker available at [docker hub](https://hub.docker.com/r/labsonar/processing)
 
 
 ## License

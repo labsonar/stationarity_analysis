@@ -1,7 +1,5 @@
 #!/bin/bash
 
-user=$USER
-
 script_name=${0##*/}					#build.sh
 script_full=`realpath $0`				#/path/build.sh
 script_path=`dirname "$script_full"` 	#/path/
@@ -11,40 +9,53 @@ print_library () {
 	echo -e "\033[1m\033[32m$1\033[0m"
 }
 
-cd "$script_path"
+submodules=($(git config --file .gitmodules --get-regexp path | awk '{ print $2 }'))
 
 libraries=($(cat Libraries.txt))
 
 case "$1" in
-	clone)
-		for i in "${libraries[@]}"
+	check_libs)
+		for lib in "${libraries[@]}"
 		do
-			library="$i"
-			print_library $library
-			cd `dirname $library`
-			echo "clonning git@github.com:labsonar/"$library".git"
-			git clone --recursive git@github.com:labsonar/$library.git
-			cd "$script_path"
+			module_name=$(basename "$lib" .git | sed 's/\.git$//')
+			module_path="lps_libraries/$module_name"
+
+
+			alredy_done=false
+			for sub in "${submodules[@]}"; do
+				if [[ "$sub" == "$module_path" ]]; then
+					alredy_done=true
+					break
+				fi
+			done
+
+			print_library $module_name
+			if [ "$alredy_done" != true ]; then
+				echo "Adding submodule"
+				git submodule add $lib "$module_path"
+			else
+				echo "Submodule already added"
+			fi
+
 		done
 	;;
-	
+
 	status)
-		s=$(git status -s)
-		if [ -n "$s" ]; then
-			print_library $dir_name
-			echo "$s"
-		fi
-
-		for i in "${libraries[@]}"; do
-			library="$i"
-			cd "$script_path/$library"
-			s=$(git status -s)
-
-			if [ -n "$s" ]; then
-				print_library $library
-				echo "$s"
+		for sub in "${submodules[@]}"; do
+			cd $sub
+			status=$(git status -s)
+			if [ -n "$status" ]; then
+				print_library $sub
+				echo "$status"
 			fi
+			cd "$script_path"
 		done
+
+		status=$(git status -s)
+		if [ -n "$status" ]; then
+			print_library "$dir_name"
+			echo "$status"
+		fi
 	;;
 
 	log)
@@ -52,10 +63,10 @@ case "$1" in
 		s=$(git log -1 --format="%h -> %s")
 		echo "$s"
 
-		for i in "${libraries[@]}"; do
-			library="$i"
-			cd "$script_path/$library"
-			print_library $library
+		for sub in "${submodules[@]}"
+		do
+			cd "$script_path/$sub"
+			print_library $sub
 
 			branch=$(git branch --show-current)
 			commit=$(git log -1 --format="%h - %s")
@@ -68,80 +79,71 @@ case "$1" in
 			fi
 		done
 	;;
-	
-	branch)
-		print_library $dir_name
-		s=$(git branch)
-		echo "$s"
 
-		for i in "${libraries[@]}"; do
-			library="$i"
-			cd "$script_path/$library"
-			print_library $library
-			s=$(git branch)
-			echo "$s"
-		done
-	;;
-	
 	pull)
-		for i in "${libraries[@]}"
-		do
-			library="$i"
-			cd "$script_path/$library"
-			print_library $library
-			git pull --recurse-submodules origin
+		for sub in "${submodules[@]}"; do
+			print_library $sub
+			cd $sub
+			git pull
+			cd "$script_path"
 		done
+
+		print_library "$dir_name"
+		git pull
+		git fetch -f --tags
 	;;
-	
+
 	push)
-		for i in "${libraries[@]}"
-		do
-			library="$i"
-			cd "$script_path/$library"
-			print_library $library
-			git push origin master
+		for sub in "${submodules[@]}"; do
+			print_library $sub
+			cd $sub
+			git push
+			cd "$script_path"
 		done
+
+		print_library "$dir_name"
+		git push
+		git push -f --tags
 	;;
 
 	install)
-		for i in "${libraries[@]}"
+		for sub in "${submodules[@]}"
 		do
-			library="$i"
-			cd "$script_path/$library/src"
-			print_library $library
+			print_library $sub
+			cd "$script_path/$sub/src"
 			pip install -e . --user
 		done
 	;;
 
 	deploy)
-		for i in "${libraries[@]}"
+		for sub in "${submodules[@]}"
 		do
-			library="$i"
-			cd "$script_path/$library/src"
-			print_library $library
+			print_library $sub
+			cd "$script_path/$sub/src"
 			pip install . --user
 		done
 	;;
 
 	todo)
-		for i in "${libraries[@]}"
+		for sub in "${submodules[@]}"
 		do
-			library="$i"
-			cd "$script_path/$library"
+			cd "$script_path/$sub"
 			grep --color -nR TODO
 			
 		done
 	;;
 
 	count)
-		for i in "${libraries[@]}"
+		for sub in "${submodules[@]}"
 		do
-			library="$i"
-			cd "$script_path/$library"
-			print_library $library
+			print_library $sub
+			cd "$script_path/$sub"
 			find . -path './*.py' | xargs wc -l | tail -n 1
-
 		done
+
+		print_library $dir_name
+		cd "$script_path"
+		find . -path './lps_libraries' -prune -o -name '*.py' -print | xargs wc -l | tail -n 1
 	;;
 	
 	pack)
@@ -149,7 +151,7 @@ case "$1" in
 		file_name=$(date +"$dir_name"_%Y-%m-%d_%H:%M.tar.gz)
 		echo "Compressing... "
 		cd ../
-		tar -czf "./$file_name" --exclude="*/CMakeFiles" --exclude="*/lib" --exclude="*/bin" --exclude="*/bin_test" --exclude="*/Manuais" --exclude="*/doc/html" --exclude="*/doc/latex" Codebase
+		tar -czf "./$file_name" $dir_name
 		
 		if [ "$2" != "" ]; then
 			md5_bf=`md5sum $file_name | cut -d " " -f1`
@@ -168,14 +170,15 @@ case "$1" in
 	;;
 	
 	list)
-		echo clone status log branch pull push install deploy todo count pack list
+		echo check_libs status log pull push install deploy todo count pack list
 	;;
 
 	*)
-		echo "$script_name {clone | status | log | branch | pull | push | install | deploy | todo | count | pack | list}"
+		echo "$script_name {check_libs | status | log | pull | push | install | deploy | todo | count | pack | list}"
 		echo "Details in: $script_full"
 		exit 1
 	;;
 esac 
  
 exit 0
+
