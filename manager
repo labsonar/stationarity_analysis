@@ -40,6 +40,15 @@ case "$1" in
 		done
 
 		git submodule update --init --recursive
+		
+		for lib in "${libraries[@]}"
+		do
+			module_name=$(basename "$lib" .git | sed 's/\.git$//')
+			module_path="lps_libraries/$module_name"
+			
+			cd "$script_path/$module_path"
+			git checkout main
+		done
 	;;
 
 	status)
